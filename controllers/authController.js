@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto'); // Built-in Node.js
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
+const { update } = require('../models/Employee');
 
 // Helper function untuk generate tokens
 const generateTokens = (user) => {
@@ -182,6 +183,86 @@ const refreshAccessToken = async (req, res) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, role, password } = req.body;
+
+    // Validasi
+    if (!email || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and role are required'
+      });
+    }
+
+    // Check if user exists
+    const existingUser = await User.findById(id);
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if email already used by another user
+    if (email !== existingUser.email) {
+      const emailCheck = await User.findByEmail(email);
+      if (emailCheck && emailCheck.id != id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+    }
+
+    // Update user
+    const updatedUser = await User.update(id, { email, role });
+
+    // Update password if provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      await User.updatePassword(id, hashedPassword);
+    }
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedUser = await User.delete(id);
+    
+    if (!deletedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
@@ -207,5 +288,7 @@ module.exports = {
   login, 
   register,
   refreshAccessToken,
+  updateUser,
+  deleteUser,
   logout
 };

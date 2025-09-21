@@ -5,7 +5,6 @@ const createEmployee = async (req, res) => {
   try {
     const { 
       userId, 
-      employeeCode, 
       fullName, 
       department, 
       position, 
@@ -13,29 +12,20 @@ const createEmployee = async (req, res) => {
       hireDate 
     } = req.body;
 
-    // Validasi required fields
-    if (!userId || !employeeCode || !fullName) {
+    // Validasi required fields (tanpa employeeCode)
+    if (!userId || !fullName || !hireDate) {
       return res.status(400).json({
         success: false,
-        message: 'User ID, Employee Code, and Full Name are required'
+        message: 'User ID, Full Name, and Hire Date are required'
       });
     }
 
     // Check if user exists
-    const user = await User.findByEmail(await getUserEmailById(userId));
-    if (!user) {
+    const userCheck = await require('../config/database').query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'User not found'
-      });
-    }
-
-    // Check if employee code already exists
-    const existingEmployee = await Employee.findByEmployeeCode(employeeCode);
-    if (existingEmployee) {
-      return res.status(400).json({
-        success: false,
-        message: 'Employee code already exists'
       });
     }
 
@@ -48,9 +38,9 @@ const createEmployee = async (req, res) => {
       });
     }
 
+    // Create employee (employeeCode akan auto-generate di model)
     const employee = await Employee.create({
       userId,
-      employeeCode,
       fullName,
       department,
       position,

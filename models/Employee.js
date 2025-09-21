@@ -1,16 +1,43 @@
 const pool = require('../config/database');
 
 class Employee {
+  static async generateEmployeeCode(hireDate) {
+    const year = new Date(hireDate).getFullYear().toString().slice(-2); // Ambil 2 digit terakhir tahun
+    
+    // Cari employee dengan tahun yang sama, urutan terbesar
+    const result = await pool.query(
+      `SELECT employee_code FROM employees 
+       WHERE employee_code LIKE $1 
+       ORDER BY employee_code DESC 
+       LIMIT 1`,
+      [`EMP${year}%`]
+    );
+
+    let sequence = '001'; // Default urutan pertama
+    
+    if (result.rows.length > 0) {
+      // Extract urutan dari employee code yang ada
+      const lastCode = result.rows[0].employee_code;
+      const lastSequence = parseInt(lastCode.slice(-3)); // Ambil 3 digit terakhir
+      const nextSequence = lastSequence + 1;
+      sequence = nextSequence.toString().padStart(3, '0'); // Format jadi 3 digit dengan leading zero
+    }
+
+    return `EMP${year}${sequence}`;
+  }
+
   static async create(employeeData) {
     const { 
       userId, 
-      employeeCode, 
       fullName, 
       department, 
       position, 
       phone, 
       hireDate 
     } = employeeData;
+
+    // Auto-generate employee code
+    const employeeCode = await this.generateEmployeeCode(hireDate);
     
     const result = await pool.query(
       `INSERT INTO employees (user_id, employee_code, full_name, department, position, phone, hire_date) 
@@ -71,7 +98,6 @@ class Employee {
   }
 
   static async delete(id) {
-    // Soft delete
     const result = await pool.query(`
       UPDATE employees 
       SET is_active = false, updated_at = CURRENT_TIMESTAMP 
