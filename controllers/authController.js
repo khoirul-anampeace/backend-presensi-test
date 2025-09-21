@@ -1,9 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const crypto = require('crypto'); // Built-in Node.js
 const User = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
-
 
 // Helper function untuk generate tokens
 const generateTokens = (user) => {
@@ -22,11 +21,12 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
-const getDataUsers = async (req, res) => {
+const getdatauser = async (req, res) => {
   try {
     const users = await User.findAll();
     res.json({
       success: true,
+      message: 'Users retrieved successfully',
       users
     });
   } catch (error) {
@@ -41,7 +41,6 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Find user by email
     const user = await User.findByEmail(email);
     if (!user) {
       return res.status(400).json({ 
@@ -50,15 +49,11 @@ const login = async (req, res) => {
       });
     }
 
-    // Check password - handle both hashed and plain text
+    // Check password
     let isValidPassword = false;
-    
-    // Check if password starts with $2b$ (bcrypt hash)
     if (user.password.startsWith('$2b$')) {
-      // Compare hashed password
       isValidPassword = await bcrypt.compare(password, user.password);
     } else {
-      // Compare plain text (untuk data lama)
       isValidPassword = password === user.password;
     }
 
@@ -69,21 +64,23 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Deactivate semua refresh token lama user ini
+    await RefreshToken.deactivateAllByUserId(user.id);
+
+    // Generate tokens baru
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    // Simpan refresh token ke database
+    const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 hari
+    await RefreshToken.create(user.id, refreshToken, refreshTokenExpiry);
 
     res.json({
       success: true,
       message: 'Login successful',
-      token,
+      accessToken,
+      refreshToken,
+      accessTokenExpiresIn: 15 * 60, // 15 menit dalam detik
+      refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 hari dalam detik
       user: {
         id: user.id,
         email: user.email,
@@ -134,4 +131,81 @@ const register = async (req, res) => {
   }
 };
 
-module.exports = { getDataUsers, login, register };
+const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token required'
+      });
+    }
+
+    // Cari refresh token di database
+    const tokenRecord = await RefreshToken.findByToken(refreshToken);
+    if (!tokenRecord) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Generate access token baru
+    const user = {
+      id: tokenRecord.user_id,
+      email: tokenRecord.email,
+      role: tokenRecord.role
+    };
+
+    const accessToken = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Access token refreshed successfully',
+      accessToken,
+      accessTokenExpiresIn: 15 * 60
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (refreshToken) {
+      await RefreshToken.deactivate(refreshToken);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { 
+  getdatauser,
+  login, 
+  register,
+  refreshAccessToken,
+  logout
+};
