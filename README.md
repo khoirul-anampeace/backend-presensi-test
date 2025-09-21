@@ -31,15 +31,3 @@ npm start
 ```
 
 Server akan berjalan di port default (5000 seusai di environment). Ubah konfigurasi sesuai kebutuhan.
-
-## Kontribusi
-
-Silakan open issue atau pull request jika ingin menambah fitur atau melaporkan bug.
-
-## Pembuat
-
-Repositori ini dibuat oleh **Khoirul Anam**.
-
-## Lisensi
-
-Proyek ini menggunakan lisensi MIT.
