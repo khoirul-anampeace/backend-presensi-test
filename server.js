@@ -18,7 +18,9 @@ app.use('/api/employees', require('./routes/employee'));
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is running!' });
 });
-
+app.get('/hello', (req, res) => {
+  res.send('Hello World!');
+} );
 
 // cleanup expired tokens every week (7 days)
 startCleanupScheduler();

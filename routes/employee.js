@@ -3,6 +3,7 @@ const {
   createEmployee,
   getAllEmployees,
   getEmployeeById,
+  getEmployeeByUserId,
   updateEmployee,
   deleteEmployee
 } = require('../controllers/employeeController');
@@ -18,6 +19,10 @@ router.get('/', getAllEmployees);
 
 // GET employee by ID
 router.get('/:id', getEmployeeById);
+
+// GET employee by User ID
+router.get('/user/:user_id', getEmployeeByUserId);
+
 
 // Admin only routes
 router.post('/', requireAdmin, createEmployee);        // Create employee

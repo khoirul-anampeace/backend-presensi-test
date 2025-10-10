@@ -103,6 +103,33 @@ const getEmployeeById = async (req, res) => {
   }
 };
 
+const getEmployeeByUserId = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const employee = await Employee.findByUserId(user_id);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Employee retrieved successfully',
+      employee
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -180,6 +207,7 @@ module.exports = {
   createEmployee,
   getAllEmployees,
   getEmployeeById,
+  getEmployeeByUserId,
   updateEmployee,
   deleteEmployee
 };
