@@ -1,31 +1,28 @@
-const Employee = require('../models/Employee');
-const User = require('../models/User');
+const Employee = require("../models/Employee");
+const User = require("../models/User");
 
 const createEmployee = async (req, res) => {
   try {
-    const { 
-      userId, 
-      fullName, 
-      department, 
-      position, 
-      phone, 
-      hireDate 
-    } = req.body;
+    const { userId, fullName, department, position, phone, hireDate } =
+      req.body;
 
     // Validasi required fields (tanpa employeeCode)
     if (!userId || !fullName || !hireDate) {
       return res.status(400).json({
         success: false,
-        message: 'User ID, Full Name, and Hire Date are required'
+        message: "User ID, Full Name, and Hire Date are required",
       });
     }
 
     // Check if user exists
-    const userCheck = await require('../config/database').query('SELECT * FROM users WHERE id = $1', [userId]);
+    const userCheck = await require("../config/database").query(
+      "SELECT * FROM users WHERE id = $1",
+      [userId]
+    );
     if (userCheck.rows.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -34,7 +31,7 @@ const createEmployee = async (req, res) => {
     if (existingUserEmployee) {
       return res.status(400).json({
         success: false,
-        message: 'User already has an employee record'
+        message: "User already has an employee record",
       });
     }
 
@@ -45,18 +42,18 @@ const createEmployee = async (req, res) => {
       department,
       position,
       phone,
-      hireDate
+      hireDate,
     });
 
     res.status(201).json({
       success: true,
-      message: 'Employee created successfully',
-      employee
+      message: "Employee created successfully",
+      employee,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -66,14 +63,14 @@ const getAllEmployees = async (req, res) => {
     const employees = await Employee.findAll();
     res.json({
       success: true,
-      message: 'Employees retrieved successfully',
+      message: "Employees retrieved successfully",
       employees,
-      count: employees.length
+      count: employees.length,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -82,23 +79,23 @@ const getEmployeeById = async (req, res) => {
   try {
     const { id } = req.params;
     const employee = await Employee.findById(id);
-    
+
     if (!employee) {
       return res.status(404).json({
         success: false,
-        message: 'Employee not found'
+        message: "Employee not found",
       });
     }
 
     res.json({
       success: true,
-      message: 'Employee retrieved successfully',
-      employee
+      message: "Employee retrieved successfully",
+      employee,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -112,23 +109,22 @@ const getEmployeeByUserId = async (req, res) => {
     if (!employee) {
       return res.status(404).json({
         success: false,
-        message: 'Employee not found'
+        message: "Employee not found",
       });
     }
 
     res.json({
       success: true,
-      message: 'Employee retrieved successfully',
-      employee
+      message: "Employee retrieved successfully",
+      employee,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 const updateEmployee = async (req, res) => {
   try {
@@ -138,7 +134,7 @@ const updateEmployee = async (req, res) => {
     if (!fullName) {
       return res.status(400).json({
         success: false,
-        message: 'Full Name is required'
+        message: "Full Name is required",
       });
     }
 
@@ -147,25 +143,25 @@ const updateEmployee = async (req, res) => {
       department,
       position,
       phone,
-      hireDate
+      hireDate,
     });
 
     if (!employee) {
       return res.status(404).json({
         success: false,
-        message: 'Employee not found'
+        message: "Employee not found",
       });
     }
 
     res.json({
       success: true,
-      message: 'Employee updated successfully',
-      employee
+      message: "Employee updated successfully",
+      employee,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -178,26 +174,26 @@ const deleteEmployee = async (req, res) => {
     if (!employee) {
       return res.status(404).json({
         success: false,
-        message: 'Employee not found'
+        message: "Employee not found",
       });
     }
 
     res.json({
       success: true,
-      message: 'Employee deleted successfully'
+      message: "Employee deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 // Helper function
 const getUserEmailById = async (userId) => {
-  const result = await require('../config/database').query(
-    'SELECT email FROM users WHERE id = $1', 
+  const result = await require("../config/database").query(
+    "SELECT email FROM users WHERE id = $1",
     [userId]
   );
   return result.rows[0]?.email;
@@ -209,5 +205,5 @@ module.exports = {
   getEmployeeById,
   getEmployeeByUserId,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
 };
