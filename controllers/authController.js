@@ -1,24 +1,23 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto'); // Built-in Node.js
-const User = require('../models/User');
-const RefreshToken = require('../models/RefreshToken');
-const { update } = require('../models/Employee');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const User = require("../models/User");
+const RefreshToken = require("../models/RefreshToken");
 
 // Helper function untuk generate tokens
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
-    { 
-      userId: user.id, 
-      email: user.email, 
-      role: user.role 
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
     },
     process.env.JWT_SECRET,
-    { expiresIn: '15m' } // 15 menit
+    { expiresIn: "15m" }
   );
 
-  const refreshToken = crypto.randomBytes(64).toString('hex');
-  
+  const refreshToken = crypto.randomBytes(64).toString("hex");
+
   return { accessToken, refreshToken };
 };
 
@@ -27,13 +26,13 @@ const getdatauser = async (req, res) => {
     const users = await User.findAll();
     res.json({
       success: true,
-      message: 'Users retrieved successfully',
-      users
+      message: "Users retrieved successfully",
+      users,
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };
@@ -41,27 +40,27 @@ const getdatauser = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     const user = await User.findByEmail(email);
     if (!user) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email not found' 
+      return res.status(400).json({
+        success: false,
+        message: "Email not found",
       });
     }
 
     // Check password
     let isValidPassword = false;
-    if (user.password.startsWith('$2b$')) {
+    if (user.password.startsWith("$2b$")) {
       isValidPassword = await bcrypt.compare(password, user.password);
     } else {
       isValidPassword = password === user.password;
     }
 
     if (!isValidPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid password' 
+      return res.status(400).json({
+        success: false,
+        message: "Invalid password",
       });
     }
 
@@ -72,62 +71,62 @@ const login = async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Simpan refresh token ke database
-    const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 hari
+    const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await RefreshToken.create(user.id, refreshToken, refreshTokenExpiry);
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       accessToken,
       refreshToken,
-      accessTokenExpiresIn: 15 * 60, // 15 menit dalam detik
-      refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 hari dalam detik
+      accessTokenExpiresIn: 15 * 60,
+      refreshTokenExpiresIn: 7 * 24 * 60 * 60,
       user: {
         id: user.id,
         email: user.email,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };
 
 const register = async (req, res) => {
   try {
-    const { email, password, role = 'employee' } = req.body;
-    
+    const { email, password, role = "employee" } = req.body;
+
     // Check if user exists
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email already exists' 
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
       });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
-    
+
     // Create user
     const user = await User.create({
       email,
       password: hashedPassword,
-      role
+      role,
     });
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
-      user
+      message: "User registered successfully",
+      user,
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };
@@ -139,7 +138,7 @@ const refreshAccessToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token required'
+        message: "Refresh token required",
       });
     }
 
@@ -148,7 +147,7 @@ const refreshAccessToken = async (req, res) => {
     if (!tokenRecord) {
       return res.status(403).json({
         success: false,
-        message: 'Invalid or expired refresh token'
+        message: "Invalid or expired refresh token",
       });
     }
 
@@ -156,29 +155,29 @@ const refreshAccessToken = async (req, res) => {
     const user = {
       id: tokenRecord.user_id,
       email: tokenRecord.email,
-      role: tokenRecord.role
+      role: tokenRecord.role,
     };
 
     const accessToken = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: "15m" }
     );
 
     res.json({
       success: true,
-      message: 'Access token refreshed successfully',
+      message: "Access token refreshed successfully",
       accessToken,
-      accessTokenExpiresIn: 15 * 60
+      accessTokenExpiresIn: 15 * 60,
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };
@@ -192,7 +191,7 @@ const updateUser = async (req, res) => {
     if (!email || !role) {
       return res.status(400).json({
         success: false,
-        message: 'Email and role are required'
+        message: "Email and role are required",
       });
     }
 
@@ -201,7 +200,7 @@ const updateUser = async (req, res) => {
     if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -211,7 +210,7 @@ const updateUser = async (req, res) => {
       if (emailCheck && emailCheck.id != id) {
         return res.status(400).json({
           success: false,
-          message: 'Email already exists'
+          message: "Email already exists",
         });
       }
     }
@@ -227,13 +226,13 @@ const updateUser = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'User updated successfully',
-      user: updatedUser
+      message: "User updated successfully",
+      user: updatedUser,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -243,22 +242,22 @@ const deleteUser = async (req, res) => {
     const { id } = req.params;
 
     const deletedUser = await User.delete(id);
-    
+
     if (!deletedUser) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
     res.json({
       success: true,
-      message: 'User deleted successfully'
+      message: "User deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -266,29 +265,92 @@ const deleteUser = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (refreshToken) {
       await RefreshToken.deactivate(refreshToken);
     }
 
     res.json({
       success: true,
-      message: 'Logout successful'
+      message: "Logout successful",
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 };
 
-module.exports = { 
+const updatePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Defensive check untuk req.body
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request body",
+      });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    // Validasi input (optional - bisa dihapus kalau mau full validasi di frontend)
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password and new password are required",
+      });
+    }
+
+    // Get user with password using direct query
+    const pool = require("../config/database");
+    const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Verify old password
+    const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password is incorrect",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password
+    await User.updatePassword(id, hashedPassword);
+
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("Update password error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
   getdatauser,
-  login, 
+  login,
   register,
   refreshAccessToken,
   updateUser,
   deleteUser,
-  logout
+  logout,
+  updatePassword,
 };

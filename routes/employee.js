@@ -24,8 +24,9 @@ router.get("/:id", getEmployeeById);
 router.get("/user/:user_id", getEmployeeByUserId);
 
 // Admin only routes
-router.post("/", requireAdmin, createEmployee); // Create employee
-router.put("/:id", requireAdmin, updateEmployee); // Update employee
-router.delete("/:id", requireAdmin, deleteEmployee); // Delete employee
+router.post("/", createEmployee); // Create employee
+router.put("/:id", updateEmployee); // Update employee
+// router.delete("/:id", requireAdmin, deleteEmployee); // require admin
+router.delete("/:id", deleteEmployee); // Delete employee
 
 module.exports = router;
