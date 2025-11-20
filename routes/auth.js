@@ -3,6 +3,7 @@ const {
   getdatauser,
   login,
   register,
+  registerWithPhotos,
   refreshAccessToken,
   updateUser,
   deleteUser,
@@ -10,12 +11,18 @@ const {
   updatePassword,
 } = require("../controllers/authController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { uploadFace } = require("../config/multer");
 
 const router = express.Router();
 
 // Public routes
 router.post("/login", login);
 router.post("/register", register);
+router.post(
+  "/register-with-photos",
+  uploadFace.array("photos", 5), // ← Multer middleware
+  registerWithPhotos
+);
 router.post("/refresh-token", refreshAccessToken);
 router.post("/logout", logout);
 

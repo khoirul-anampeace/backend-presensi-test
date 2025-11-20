@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
 const RefreshToken = require("../models/RefreshToken");
+const { deleteUploadedFiles } = require("../utils/fileHelper");
 
 // Helper function untuk generate tokens
 const generateTokens = (user) => {
@@ -97,9 +98,28 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   try {
-    const { email, password, role = "employee" } = req.body;
+    const {
+      email,
+      password,
+      role = "employee",
+      fullName,
+      department,
+      position,
+      phone,
+      hireDate,
+      faceEncodings, // Array of 5 encodings or single encoding
+      photoPaths, // Array of 5 photo paths (optional)
+    } = req.body;
 
-    // Check if user exists
+    // Validasi required fields
+    if (!email || !password || !fullName || !hireDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, password, full name, and hire date are required",
+      });
+    }
+
+    // Check if email already exists
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
@@ -111,19 +131,244 @@ const register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // 1. Create User
     const user = await User.create({
       email,
       password: hashedPassword,
       role,
     });
 
+    // 2. Create Employee with user_id
+    const Employee = require("../models/Employee");
+    const employee = await Employee.create({
+      userId: user.id,
+      fullName,
+      department,
+      position,
+      phone,
+      hireDate,
+    });
+
+    // 3. Save Face Encodings (if provided)
+    let faceEncodingData = null;
+    if (
+      faceEncodings &&
+      Array.isArray(faceEncodings) &&
+      faceEncodings.length > 0
+    ) {
+      const FaceEncoding = require("../models/FaceEncoding");
+
+      if (faceEncodings.length === 1) {
+        // Single photo
+        faceEncodingData = await FaceEncoding.create({
+          employeeId: employee.id,
+          encoding: faceEncodings[0],
+          photoPath: photoPaths?.[0] || null,
+        });
+      } else {
+        // Multiple photos (5 photos)
+        faceEncodingData = await FaceEncoding.createMultiple(
+          employee.id,
+          faceEncodings,
+          photoPaths || []
+        );
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        },
+        employee: {
+          id: employee.id,
+          employeeCode: employee.employee_code,
+          fullName: employee.full_name,
+          department: employee.department,
+          position: employee.position,
+          phone: employee.phone,
+          hireDate: employee.hire_date,
+        },
+        faceEncoding: faceEncodingData
+          ? {
+              photoCount: Array.isArray(faceEncodingData)
+                ? faceEncodingData.length
+                : 1,
+              hasEncoding: true,
+            }
+          : null,
+      },
     });
   } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+const registerWithPhotos = async (req, res) => {
+  try {
+    // 1. Validate files uploaded
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No photos uploaded. Please upload 5 face photos.",
+      });
+    }
+
+    if (req.files.length !== 5) {
+      // ✅ DELETE FILES if count is wrong
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: `Expected 5 photos, but got ${req.files.length}. Please upload exactly 5 face photos.`,
+      });
+    }
+
+    // 2. Get form data
+    const {
+      email,
+      password,
+      role = "employee",
+      fullName,
+      department,
+      position,
+      phone,
+      hireDate,
+      faceEncodings,
+    } = req.body;
+
+    // 3. Validasi required fields
+    if (!email || !password || !fullName || !hireDate) {
+      // DELETE FILES if validation fails
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: "Email, password, full name, and hire date are required",
+      });
+    }
+
+    if (!faceEncodings) {
+      // DELETE FILES if no encodings
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: "Face encodings are required",
+      });
+    }
+
+    // 4. Parse face encodings
+    let parsedEncodings;
+    try {
+      parsedEncodings = JSON.parse(faceEncodings);
+    } catch (error) {
+      // DELETE FILES if JSON parse fails
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid face encodings format. Must be valid JSON array.",
+      });
+    }
+
+    // 5. Validate encodings count
+    if (parsedEncodings.length !== req.files.length) {
+      // DELETE FILES if count mismatch
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: `Number of encodings (${parsedEncodings.length}) must match number of photos (${req.files.length})`,
+      });
+    }
+
+    // 6. Check if email already exists
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
+      // DELETE FILES if email exists
+      deleteUploadedFiles(req.files);
+
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+
+    // 7. Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // 8. Create User
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      role,
+    });
+
+    // 9. Create Employee
+    const Employee = require("../models/Employee");
+    const employee = await Employee.create({
+      userId: user.id,
+      fullName,
+      department,
+      position,
+      phone,
+      hireDate,
+    });
+
+    // 10. Get photo paths
+    const photoPaths = req.files.map(
+      (file) => `/uploads/faces/${file.filename}`
+    );
+
+    // 11. Save face encodings with photo paths
+    const FaceEncoding = require("../models/FaceEncoding");
+    const savedEncodings = await FaceEncoding.createMultiple(
+      employee.id,
+      parsedEncodings,
+      photoPaths
+    );
+
+    // 12. Success response
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully with face photos",
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        },
+        employee: {
+          id: employee.id,
+          employeeCode: employee.employee_code,
+          fullName: employee.full_name,
+          department: employee.department,
+          position: employee.position,
+          phone: employee.phone,
+          hireDate: employee.hire_date,
+        },
+        faceEncoding: {
+          photoCount: savedEncodings.length,
+          photos: photoPaths,
+        },
+      },
+    });
+  } catch (error) {
+    // DELETE FILES if unexpected error occurs
+    if (req.files) {
+      deleteUploadedFiles(req.files);
+    }
+
+    console.error("Register with photos error:", error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -348,6 +593,7 @@ module.exports = {
   getdatauser,
   login,
   register,
+  registerWithPhotos,
   refreshAccessToken,
   updateUser,
   deleteUser,
