@@ -16,8 +16,8 @@ const { uploadFace } = require("../config/multer");
 const router = express.Router();
 
 // Public routes
-router.post("/login", login);
-router.post("/register", register);
+// router.post("/login", login);
+// router.post("/register", register);
 router.post(
   "/register-with-photos",
   uploadFace.array("photos", 5), // ← Multer middleware
