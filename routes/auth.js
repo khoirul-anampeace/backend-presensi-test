@@ -21,10 +21,10 @@ const router = express.Router();
 router.post(
   "/register-with-photos",
   uploadFace.array("photos", 5), // ← Multer middleware
-  registerWithPhotos
+  registerWithPhotos,
 );
 router.post("/refresh-token", refreshAccessToken);
-router.post("/logout", logout);
+// router.post("/logout", logout);
 
 // Protected routes
 router.get("/data-users", authenticateToken, requireAdmin, getdatauser);
