@@ -24,10 +24,10 @@ router.post(
   registerWithPhotos,
 );
 router.post("/refresh-token", refreshAccessToken);
-// router.post("/logout", logout);
+router.post("/logout", logout);
 
 // Protected routes
-router.get("/data-users", authenticateToken, requireAdmin, getdatauser);
+// router.get("/data-users", authenticateToken, requireAdmin, getdatauser);
 router.put("/users/:id", authenticateToken, updateUser);
 router.delete("/users/:id", authenticateToken, requireAdmin, deleteUser);
 
